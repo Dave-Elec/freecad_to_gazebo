@@ -1,15 +1,14 @@
-#!/usr/bin/env python3
-
 import os
 import platform
 
 # check os types to search for freecad libraries
 if 'linux' in platform.system().lower():
-    if 'ubuntu' in platform.dist().lower():
+    if 'ubuntu' in platform.dist()[0].lower():
         FREECAD_PATH = '/usr/lib/freecad'
-    elif 'fedora' in platform.dist().lower():
+    elif 'fedora' in platform.dist()[0].lower():
         FREECAD_PATH = '/usr/lib/freecad'
 elif 'nt' in platform.dist().lower():
+    pass
     # TODO: Find freecad libs on windows
 else:
     raise Exception("Platform not supported")
