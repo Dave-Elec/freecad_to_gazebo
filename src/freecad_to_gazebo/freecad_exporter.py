@@ -61,7 +61,7 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
 
             if export_mesh:
                 os.makedirs(mesh_dir, exist_ok=True)
-                export(doc, [obj], mesh_file, scale=scale)
+                export(doc, [obj], mesh_file, scale=scale, offset=com*-1)
 
             pose = placement.copy()
             pose.Base = com
@@ -111,8 +111,8 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
                 axis = Axis(pose=axis_pose,
                             lower_limit=joint_limits.get('lower', -90),
                             upper_limit=joint_limits.get('upper', 90),
-                            effort_limit=joint_limits.get('effort', -10),
-                            velocity_limit=joint_limits.get('velocity', -10))
+                            effort_limit=joint_limits.get('effort', 10),
+                            velocity_limit=joint_limits.get('velocity', 10))
 
                 joint = Joint(name=parent.Label+'_'+child.Label,
                               pose=joint_pose,
@@ -151,20 +151,20 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
         joint_names = [joint.name for joint in model.joints]
 
         for joint in joint_names:
-            transmission = ET.SubElement(actuators, 'transmission', name=robot_name)
+            transmission = ET.SubElement(actuators, 'transmission', name=joint)
             tr_type = ET.SubElement(transmission, 'type')
             tr_type.text = tr_configs.get('type', 'transmission_interface/SimpleTransmission')
-            actuator = ET.SubElement(transmission, 'actuator')
-            hw_interface = ET.SubElement(actuator, 'HardwareInterface')
+            actuator = ET.SubElement(transmission, 'actuator', name=joint)
+            hw_interface = ET.SubElement(actuator, 'hardwareInterface')
             hw_interface.text = tr_configs.get('hardware_interface', 'hardware_interface/PositionJointInterface')
             reduction = ET.SubElement(actuator, 'mechanicalReduction')
             reduction.text = '1'
 
             tr_joint = ET.SubElement(transmission, 'joint', name=joint)
-            hw_interface = ET.SubElement(tr_joint, 'HardwareInterface')
-            hw_interface.text = tr_configs.get('type', 'hardware_interface/PositionJointInterface')
+            hw_interface = ET.SubElement(tr_joint, 'hardwareInterface')
+            hw_interface.text = tr_configs.get('hardware_interface', 'hardware_interface/PositionJointInterface')
 
-        with open(os.path.join(model_dir, 'models', 'actuators.urdf'), 'w') as actuators_file:
+        with open(os.path.join(model_dir, 'models', robot_name+'_actuators.urdf'), 'w') as actuators_file:
             actuators_file.write(parseString(ET.tostring(actuators)).toprettyxml(indent=' '*2))
 
         control_configs={}
@@ -189,9 +189,9 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
                 'joints': joint_names
             }
             pid_gains = {}
-            control_configs[robot_name]['gazebo_ros_control/pid_gains'] = {}
+            control_configs['gazebo_ros_control/pid_gains'] = {}
             for joint in joint_names:
-                control_configs[robot_name]['gazebo_ros_control/pid_gains'][joint] = pid.copy()
+                control_configs['gazebo_ros_control/pid_gains'][joint] = pid.copy()
         os.makedirs(os.path.join(model_dir, 'config'), exist_ok=True)
         with open(os.path.join(model_dir, 'config', robot_name+'_controll.yaml'), 'w') as control_configs_file:
             yaml.dump(control_configs, control_configs_file)
