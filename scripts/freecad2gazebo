@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import os
 from freecad_to_gazebo import freecad_exporter
 import argparse
