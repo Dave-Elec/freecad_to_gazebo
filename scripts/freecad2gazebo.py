@@ -1,0 +1,35 @@
+import os
+from freecad_to_gazebo import freecad_exporter
+import argparse
+import json
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('assembly', type=str, help='filename of the assembly')
+    parser.add_argument('model_dir', type=str, help='model output directory')
+    parser.add_argument('--sdf-only',
+                        action='store_true',
+                        default=False,
+                        help='export only sdf')
+    parser.add_argument('--noexport',
+                        action="store_true",
+                        default=False,
+                        help='export mesh files')
+    parser.add_argument('--config', type=str, help='model configuration file (json)')
+
+    args = parser.parse_args()
+
+    default_config = os.path.join(os.path.split(args.assembly)[0],'robot_config.json')
+    config_file = args.config or default_config if os.path.exists(default_config) else None
+    print(config_file)
+
+    configs = {}
+    if config_file:
+        configs = json.load(open(config_file, 'r'))
+
+    configs['export'] = not args.noexport
+    configs['sdf_only'] = args.sdf_only
+
+    freecad_exporter.export_gazebo_model(args.assembly, args.model_dir, configs)
+
