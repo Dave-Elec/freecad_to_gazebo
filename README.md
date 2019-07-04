@@ -30,7 +30,7 @@ $ source devel/setup.bash
 
 #### To generate only SDF model from freecad assembly:
 ```console
-# freecad_to_gazebo.py <assembly_file> <path/to/model_dir> --sdf
+# freecad_to_gazebo.py <assembly_file> <path/to/model_dir> --sdf-only
 ```
 
 #### To generate SDF and URDF model from freecad assembly:
@@ -41,7 +41,7 @@ Note: Only links and joints are generated in the SDF model. to use the model wit
 
 ## Options
 ```console
-$ freecad_to_gazebo.py <assembly_file> <path/to/model> [--sdf] [--noexport] [--config <path/to/config>]
+$ freecad_to_gazebo.py <assembly_file> <path/to/model> [--sdf-only] [--noexport] [--config <path/to/config>]
 ```
 
 **--sdf**: Export only SDF.
@@ -55,7 +55,7 @@ $ freecad_to_gazebo.py <assembly_file> <path/to/model> [--sdf] [--noexport] [--c
 ```json
 {
     "name": "robot_name",
-    "joints_limits": {"upper": 90, "lower": -90, "effort": 1, "velocity": 5},
+    "joints_limits": {"upper": 90, "lower": -90, "effort": 10, "velocity": 5},
     "transmission": {
         "type": "transmission_interface/SimpleTransmission",
         "hardware_interface": "hardware_interface/PositionJointInterface"
@@ -65,7 +65,8 @@ $ freecad_to_gazebo.py <assembly_file> <path/to/model> [--sdf] [--noexport] [--c
         "grouped": true
     },
     "joints_pid": {"p": 20.0, "i": 10.0, "d": 0.0, "i_clamp": 0.0},
-    "root_link": "base_link"
+    "root_link": "base_link",
+    "ros_package": "humanoid_17dof_description"
 }
 ```
 
