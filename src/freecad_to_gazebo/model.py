@@ -1,7 +1,14 @@
-from .conversions import *
+from freecad_to_gazebo.conversions import *
 import FreeCAD
 from xml.etree import ElementTree as ET
+from xml.dom.minidom import parseString
 
+
+def add_poses(p1, p2):
+    return FreeCAD.Placement(p1.toMatrix() + p2.toMatrix())
+
+def subtract_poses(p1, p2):
+    return FreeCAD.Placement(p1.toMatrix() + p2.toMatrix().inverse())
 
 def pose_to_xml(pose, fmt='sdf'):
     '''Converts a pose/freecad placement/ to xml element
@@ -22,7 +29,7 @@ def pose_to_xml(pose, fmt='sdf'):
 
 def pose_xyz(pose):
     '''Returns the xyz/Base portion of a pose as string'''
-    xyz = pose.Base
+    xyz = pose.Base if hasattr(pose, 'Base') else pose
     return ' '.join([flt2str(i) for i in xyz])
 
 
@@ -31,6 +38,7 @@ class SpatialEntity(object):
     def __init__(self, **kwargs):
         self.name = kwargs.get('name', '')
         self.pose = kwargs.get('pose', FreeCAD.Placement())
+        self.global_pose = kwargs.get('global_pose', FreeCAD.Placement())
         self.urdf_pose = kwargs.get('urdf_pose', FreeCAD.Placement())
 
         self.formats = ['sdf', 'urdf']
@@ -60,13 +68,44 @@ class Model(SpatialEntity):
             self.joints.append(kwargs.get('joint', Joint()))
         self.joints.extend(kwargs.get('joints', []))
 
+    def get_link(self, link_name):
+        for link in self.links:
+            if link_name == link.name:
+                return link
+
+    def get_joint(self, joint_name):
+        pass
+
+    def build_tree(self):
+        for joint in self.joints:
+            joint.parent_link = self.get_link(joint.parent)
+            if not joint.parent_link:
+                raise Exception('Parent not found for joint %s' % joint.name)
+            joint.parent_link.child_joints.append(joint)
+
+            joint.child_link = self.get_link(joint.child)
+            if not joint.child_link:
+                raise Exception('Child not found for joint %s' % joint.name)
+            joint.child_link.parent_joint = joint
+
+    def calculate_global_poses(self):
+        for link in self.links:
+            link.global_pose = add_poses(self.pose, link.pose)
+        for joint in self.joints:
+            joint.global_pose = add_poses(joint.child_link.global_pose, joint.pose)
+
     def to_xml(self, fmt='sdf'):
         '''returns xml element of a model/robot'''
         super(Model, self).to_xml(fmt)
+
+        self.build_tree()
+        self.calculate_global_poses()
+
         tag = 'robot' if fmt=='urdf' else 'model'
         model = ET.Element(tag, name=self.name)
 
         if fmt == 'sdf':
+            model.append(pose_to_xml(self.pose))
             static = ET.SubElement(model, 'static')
             static.text = str(self.static).lower()
             self_collide = ET.SubElement(model, 'self_collide')
@@ -86,6 +125,10 @@ class Model(SpatialEntity):
             return sdf
 
         return model
+
+    def to_xml_string(self, fmt='sdf', header=True):
+        dom = parseString(ET.tostring(self.to_xml(fmt)))
+        return dom.toprettyxml(indent=' '*2)
 
 
 class Inertia(object):
@@ -117,7 +160,7 @@ class Inertia(object):
 class Inertial(SpatialEntity):
     '''A class representing an inertial element'''
     def __init__(self, **kwargs):
-        super(Inertial, self).__init__()
+        super(Inertial, self).__init__(**kwargs)
         self.mass = kwargs.get('mass', 0)
         self.inertia = kwargs.get('inertia', Inertia())
 
@@ -131,7 +174,7 @@ class Inertial(SpatialEntity):
         if fmt == 'sdf':
             mass.text = flt2str(self.mass)
         else:
-            mass.set('vaue', flt2str(self.mass))
+            mass.set('value', flt2str(self.mass))
         inertial.append(self.inertia.to_xml(fmt=fmt))
 
         return inertial
@@ -177,9 +220,12 @@ class Link(SpatialEntity):
     '''A class representing a link element'''
     def __init__(self, **kwargs):
         super(Link, self).__init__(**kwargs)
-        self.inertial = Inertial()
+        self.inertial = kwargs.get('inertial', Inertial())
         self.visuals = []
         self.collisions = []
+
+        self.parent_joint = None
+        self.child_joints = []
 
         if 'visual' in kwargs:
             self.visuals.append(kwargs.get('visual', Visual()))
@@ -194,14 +240,23 @@ class Link(SpatialEntity):
         super(Link, self).to_xml(fmt)
         link = ET.Element('link', name=self.name)
 
+        if self.parent_joint:
+            self.urdf_pose = subtract_poses(self.global_pose,
+                                           self.parent_joint.global_pose)
+        else:
+            self.urdf_pose = self.global_pose.copy()
+
         if fmt == 'sdf':
             link.append(pose_to_xml(self.pose, fmt=fmt))
 
+        self.inertial.urdf_pose = add_poses(self.inertial.pose, self.urdf_pose)
         link.append(self.inertial.to_xml(fmt=fmt))
 
         for visual in self.visuals:
+            visual.urdf_pose = self.urdf_pose.copy()
             link.append(visual.to_xml(fmt=fmt))
         for collision in self.collisions:
+            collision.urdf_pose = self.urdf_pose.copy()
             link.append(collision.to_xml(fmt=fmt))
 
         return link
@@ -238,13 +293,13 @@ class Axis(SpatialEntity):
             use_parent_frame = ET.SubElement(axis, 'use_parent_model_frame')
             use_parent_frame.text = str(self.use_parent_frame).lower()
         else:
-            axis.set('xyz', pose_xyz(self.urdf_pose))
+            axis.set('xyz', pose_xyz(self.pose))
             axis.set('use_parent_model_frame', str(self.use_parent_frame).lower())
             limit = ET.Element('limit')
             limit.set('lower', flt2str(deg2rad(self.lower_limit)))
             limit.set('upper', flt2str(deg2rad(self.upper_limit)))
-            limit.set('effort', flt2str(deg2rad(self.effort_limit)))
-            limit.set('velocity', flt2str(deg2rad(self.velocity_limit)))
+            limit.set('effort', flt2str(self.effort_limit))
+            limit.set('velocity', flt2str(self.velocity_limit))
 
             return [axis, limit]
         return axis
@@ -259,9 +314,19 @@ class Joint(SpatialEntity):
         self.type = kwargs.get('type', '')
         self.axis = kwargs.get('axis', Axis())
 
+        self.parent_link = None
+        self.child_link = None
+
     def to_xml(self, fmt='sdf'):
         '''returns a joint xml element'''
         super(Joint, self).to_xml(fmt)
+
+        if self.parent_link.parent_joint:
+            self.urdf_pose = subtract_poses(self.global_pose,
+                                            self.parent_link.parent_joint.global_pose)
+        else:
+            self.urdf_pose = self.global_pose.copy()
+
         joint = ET.Element('joint', {'name': self.name, 'type': self.type})
         pose = self.pose if fmt=='sdf' else self.urdf_pose
         joint.append(pose_to_xml(pose, fmt=fmt))
@@ -274,7 +339,7 @@ class Joint(SpatialEntity):
             joint.append(self.axis.to_xml(fmt=fmt))
         else:
             parent.set('link', self.parent)
-            child.set('Link', self.child)
+            child.set('link', self.child)
             joint.extend(self.axis.to_xml(fmt=fmt))
 
         return joint
