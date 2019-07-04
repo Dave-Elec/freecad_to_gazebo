@@ -1,4 +1,3 @@
-import FreeCAD
 from math import radians as _radians
 
 
