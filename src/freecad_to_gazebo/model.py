@@ -76,6 +76,13 @@ class Model(SpatialEntity):
     def get_joint(self, joint_name):
         pass
 
+    def get_root_link(self):
+        root_link = None
+        for link in self.links:
+            if not link.parent_joint:
+                root_link = link
+        return root_link
+
     def build_tree(self):
         for joint in self.joints:
             joint.parent_link = self.get_link(joint.parent)
@@ -113,8 +120,21 @@ class Model(SpatialEntity):
         else:
             model.set('static', str(self.static).lower())
 
+            root_link = self.get_root_link()
+            if not root_link:
+                raise Exception("Couldn't find root link")
+            model.append(ET.Element('link', name=root_link.name+'_root'))
         for link in self.links:
             model.append(link.to_xml(fmt))
+
+        if fmt=='urdf':
+            root_joint = ET.Element('joint',
+                                    {"name": root_link.name+'_root',
+                                     "type": "fixed"})
+            root_joint.append(pose_to_xml(root_link.global_pose, fmt))
+            ET.SubElement(root_joint, 'parent', link= root_link.name+'_root')
+            ET.SubElement(root_joint, 'child', link= root_link.name)
+            model.append(root_joint)
 
         for joint in self.joints:
             model.append(joint.to_xml(fmt))
@@ -244,7 +264,7 @@ class Link(SpatialEntity):
             self.urdf_pose = subtract_poses(self.global_pose,
                                            self.parent_joint.global_pose)
         else:
-            self.urdf_pose = self.global_pose.copy()
+            self.urdf_pose = FreeCAD.Placement()
 
         if fmt == 'sdf':
             link.append(pose_to_xml(self.pose, fmt=fmt))
@@ -325,7 +345,7 @@ class Joint(SpatialEntity):
             self.urdf_pose = subtract_poses(self.global_pose,
                                             self.parent_link.parent_joint.global_pose)
         else:
-            self.urdf_pose = self.global_pose.copy()
+            self.urdf_pose = subtract_poses(self.global_pose, self.parent_link.global_pose)
 
         joint = ET.Element('joint', {'name': self.name, 'type': self.type})
         pose = self.pose if fmt=='sdf' else self.urdf_pose
