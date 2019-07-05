@@ -139,7 +139,7 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
         plugin = ET.SubElement(gazebo, 'plugin')
         plugin.set('filename', 'libgazebo_ros_control.so')
         plugin.set('name', 'gazebo_ros_control')
-        namespace = ET.SubElement(plugin, 'robotNameSpace')
+        namespace = ET.SubElement(plugin, 'robotNamespace')
         namespace.text = '/'+robot_name
         simtype = ET.SubElement(plugin, 'robotSimType')
         simtype.text = 'gazebo_ros_control/DefaultRobotHWSim'
@@ -188,11 +188,10 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
                 'publish_rate': 50,
                 'joints': joint_names
             }
-            pid_gains = {}
-            control_configs['gazebo_ros_control/pid_gains'] = {}
+            control_configs[robot_name]['gazebo_ros_control/pid_gains'] = {}
             for joint in joint_names:
-                control_configs['gazebo_ros_control/pid_gains'][joint] = pid.copy()
+                control_configs[robot_name]['gazebo_ros_control/pid_gains'][joint] = pid.copy()
         os.makedirs(os.path.join(model_dir, 'config'), exist_ok=True)
         with open(os.path.join(model_dir, 'config', robot_name+'_controll.yaml'), 'w') as control_configs_file:
-            yaml.dump(control_configs, control_configs_file)
+            yaml.dump_all([control_configs], control_configs_file, sort_keys=False)
 
