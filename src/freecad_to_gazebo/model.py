@@ -290,6 +290,8 @@ class Axis(SpatialEntity):
         self.upper_limit = kwargs.get('upper_limit', 0)
         self.effort_limit = kwargs.get('effort_limit', 0)
         self.velocity_limit = kwargs.get('velocity_limit', 0)
+        self.friction = kwargs.get('friction', 0)
+        self.damping = kwargs.get('damping', 0)
         self.use_parent_frame = kwargs.get('use_parent_frame', False)
 
     def to_xml(self, fmt='sdf'):
@@ -310,6 +312,11 @@ class Axis(SpatialEntity):
             effort.text = flt2str(self.effort_limit)
             velocity = ET.SubElement(limit, 'velocity')
             velocity.text = flt2str(self.velocity_limit)
+            dynamics = ET.SubElement(axis, 'dynamics')
+            friction = ET.SubElement(dynamics, 'friction')
+            friction.text = flt2str(self.friction)
+            damping = ET.SubElement(dynamics, 'damping')
+            damping.text = flt2str(self.damping)
             use_parent_frame = ET.SubElement(axis, 'use_parent_model_frame')
             use_parent_frame.text = str(self.use_parent_frame).lower()
         else:
@@ -321,7 +328,11 @@ class Axis(SpatialEntity):
             limit.set('effort', flt2str(self.effort_limit))
             limit.set('velocity', flt2str(self.velocity_limit))
 
-            return [axis, limit]
+            dynamics = ET.Element('dynamics')
+            dynamics.set('friction', flt2str(self.friction))
+            dynamics.set('damping', flt2str(self.damping))
+
+            return [axis, limit, dynamics]
         return axis
 
 

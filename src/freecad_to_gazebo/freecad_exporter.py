@@ -38,6 +38,7 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
     model.sdf_version = '1.5'
 
     joint_limits = configs.get('joints_limits', {})
+    joint_dynamics = configs.get('joints_dynamics', {})
 
     constraints = []
     for obj in doc.Objects:
@@ -112,7 +113,9 @@ def export_gazebo_model(assembly_file, model_dir, configs={}):
                             lower_limit=joint_limits.get('lower', -90),
                             upper_limit=joint_limits.get('upper', 90),
                             effort_limit=joint_limits.get('effort', 10),
-                            velocity_limit=joint_limits.get('velocity', 10))
+                            velocity_limit=joint_limits.get('velocity', 10),
+                            friction=joint_dynamics.get('friction', 0),
+                            damping=joint_dynamics.get('damping', 0))
 
                 joint = Joint(name=parent.Label+'_'+child.Label,
                               pose=joint_pose,
