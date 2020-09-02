@@ -14,7 +14,7 @@ else:
     raise Exception("Platform not supported")
 
 # Extend sys.path to include freecad python libraries (including workbenches)
-os.sys.path.extend(d.path for d in os.scandir(FREECAD_PATH))
+os.sys.path.extend(os.path.join(FREECAD_PATH, d) for d in os.scandir(FREECAD_PATH))
 
 from freecad_to_gazebo.mesh_exporter import export
 from freecad_to_gazebo.model import *
