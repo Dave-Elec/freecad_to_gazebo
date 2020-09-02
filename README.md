@@ -30,18 +30,18 @@ $ source devel/setup.bash
 
 #### To generate only SDF model from freecad assembly:
 ```console
-# freecad_to_gazebo.py <assembly_file> <path/to/model_dir> --sdf-only
+# freecad2gazebo <assembly_file> <path/to/model_dir> --sdf-only
 ```
 
 #### To generate SDF and URDF model from freecad assembly:
 ```console
-$ freecad_to_gazebo.py <assembly_file> <path/to/model_dir>
+$ freecad2gazebo <assembly_file> <path/to/model_dir>
 ```
 Note: Only links and joints are generated in the SDF model. to use the model with ros, use the URDF model.
 
 ## Options
 ```console
-$ freecad_to_gazebo.py <assembly_file> <path/to/model> [--sdf-only] [--noexport] [--config <path/to/config>]
+$ freecad2gazebo <assembly_file> <path/to/model> [--sdf-only] [--noexport] [--config <path/to/config>]
 ```
 
 **--sdf**: Export only SDF.
