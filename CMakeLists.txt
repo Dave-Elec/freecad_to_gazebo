@@ -1,6 +1,6 @@
 
 cmake_minimum_required(VERSION 2.8.3)
-project(humanoid_17dof_description)
+project(freecad_to_gazebo)
 
 find_package(catkin REQUIRED COMPONENTS
   rospy
